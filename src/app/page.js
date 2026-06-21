@@ -1,66 +1,118 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
+  const [query, setQuery] = useState('');
+  const [films, setFilms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    fetchFilms('', 1);
+  }, []);
+
+  const fetchFilms = async (searchQuery = '', pageNum = 1, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+
+    try {
+      const res = await fetch(`/api/films?q=${encodeURIComponent(searchQuery)}&page=${pageNum}&limit=12`);
+      const data = await res.json();
+      
+      if (append) {
+        setFilms(prev => [...prev, ...data.films]);
+      } else {
+        setFilms(data.films);
+      }
+      
+      setTotalPages(data.totalPages);
+      setPage(data.page);
+    } catch (error) {
+      console.error('Error fetching films:', error);
+    }
+    
+    setLoading(false);
+    setLoadingMore(false);
+  };
+
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    fetchFilms(val, 1, false);
+  };
+
+  const loadMore = () => {
+    if (page < totalPages) {
+      fetchFilms(query, page + 1, true);
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="container">
+      <h1 className="title">Explore Nollywood</h1>
+      <p className="subtitle">Discover the vibrant world of Nigerian cinema</p>
+
+      <div className="search-container">
+        <div className="search-box">
+          <input 
+            type="text" 
+            className="search-input" 
+            placeholder="Search by film title, actor, or keyword..." 
+            value={query}
+            onChange={handleSearch}
+          />
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      {loading && films.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</div>
+      ) : (
+        <>
+          <div className="film-grid">
+            {films.length === 0 ? (
+              <div style={{ color: 'var(--text-secondary)', gridColumn: '1 / -1', textAlign: 'center' }}>
+                No films found.
+              </div>
+            ) : (
+              films.map(film => (
+                <div className="film-card" key={film.id}>
+                  <div className="film-title">{film.title}</div>
+                  {film.releaseYear && <div className="film-year">{film.releaseYear}</div>}
+                  {film.description && <div className="film-desc">{film.description}</div>}
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {film.productionCompany && (
+                      <div className="film-meta">
+                        Company: <span>{film.productionCompany}</span>
+                      </div>
+                    )}
+                    {film.cast && film.cast.length > 0 && (
+                      <div className="film-meta">
+                        Cast: <span>{film.cast.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {page < totalPages && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '3rem' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={loadMore} 
+                disabled={loadingMore}
+                style={{ padding: '0.8rem 2rem', borderRadius: '30px' }}
+              >
+                {loadingMore ? 'Loading...' : 'Load More'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </main>
   );
 }
