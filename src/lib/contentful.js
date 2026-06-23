@@ -53,6 +53,8 @@ export async function createFilm(filmData) {
       releaseYear: { 'en-US': parseInt(filmData.releaseYear, 10) || null },
       description: { 'en-US': filmData.description || '' },
       productionCompany: { 'en-US': filmData.productionCompany || '' },
+      directedBy: { 'en-US': filmData.directedBy || '' },
+      producedBy: { 'en-US': filmData.producedBy || '' },
       cast: { 'en-US': filmData.cast ? filmData.cast.split(',').map(s => s.trim()) : [] },
       posterUrl: { 'en-US': filmData.posterUrl || '' }
     }
@@ -72,6 +74,8 @@ export async function updateFilm(id, filmData) {
   entry.fields.releaseYear = { 'en-US': parseInt(filmData.releaseYear, 10) || null };
   entry.fields.description = { 'en-US': filmData.description || '' };
   entry.fields.productionCompany = { 'en-US': filmData.productionCompany || '' };
+  entry.fields.directedBy = { 'en-US': filmData.directedBy || '' };
+  entry.fields.producedBy = { 'en-US': filmData.producedBy || '' };
   entry.fields.cast = { 'en-US': filmData.cast ? filmData.cast.split(',').map(s => s.trim()) : [] };
   entry.fields.posterUrl = { 'en-US': filmData.posterUrl || '' };
   

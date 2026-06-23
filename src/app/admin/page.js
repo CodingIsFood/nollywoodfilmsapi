@@ -12,6 +12,8 @@ export default function AdminDashboard() {
     releaseYear: '',
     description: '',
     productionCompany: '',
+    directedBy: '',
+    producedBy: '',
     cast: '',
     posterUrl: ''
   });
@@ -68,6 +70,8 @@ export default function AdminDashboard() {
       releaseYear: film.releaseYear || '',
       description: film.description || '',
       productionCompany: film.productionCompany || '',
+      directedBy: film.directedBy || '',
+      producedBy: film.producedBy || '',
       cast: film.cast ? film.cast.join(', ') : '',
       posterUrl: film.posterUrl || ''
     });
@@ -91,6 +95,8 @@ export default function AdminDashboard() {
       releaseYear: '',
       description: '',
       productionCompany: '',
+      directedBy: '',
+      producedBy: '',
       cast: '',
       posterUrl: ''
     });
@@ -122,6 +128,16 @@ export default function AdminDashboard() {
             <div className="form-group">
               <label>Production Company</label>
               <input type="text" name="productionCompany" className="form-control" value={formData.productionCompany} onChange={handleInputChange} />
+            </div>
+
+            <div className="form-group">
+              <label>Directed By</label>
+              <input type="text" name="directedBy" className="form-control" value={formData.directedBy} onChange={handleInputChange} />
+            </div>
+
+            <div className="form-group">
+              <label>Produced By</label>
+              <input type="text" name="producedBy" className="form-control" value={formData.producedBy} onChange={handleInputChange} />
             </div>
 
             <div className="form-group">
