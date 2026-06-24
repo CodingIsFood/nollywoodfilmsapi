@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 export default function AdminDashboard() {
   const [films, setFilms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
   // Form state
   const [editingId, setEditingId] = useState(null);
@@ -19,16 +21,17 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    fetchFilms();
-  }, []);
+    fetchFilms(currentPage);
+  }, [currentPage]);
 
-  const fetchFilms = async () => {
+  const fetchFilms = async (page = 1) => {
     setLoading(true);
     try {
-      // Fetch more for admin or just page 1. Since it's admin, we might want to see more, e.g. limit=100
-      const res = await fetch('/api/films?limit=100');
+      const res = await fetch(`/api/films?page=${page}&limit=10`);
       const data = await res.json();
       setFilms(data.films || []);
+      setTotalPages(data.totalPages || 1);
+      setCurrentPage(data.page || 1);
     } catch (error) {
       console.error('Error fetching films:', error);
     }
@@ -43,23 +46,32 @@ export default function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      let res;
       if (editingId) {
-        await fetch(`/api/films/${editingId}`, {
+        res = await fetch(`/api/films/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
       } else {
-        await fetch('/api/films', {
+        res = await fetch('/api/films', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
       }
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to save film');
+        return;
+      }
+
       resetForm();
-      fetchFilms();
+      fetchFilms(currentPage);
     } catch (error) {
       console.error('Failed to save film:', error);
+      alert('An unexpected error occurred while saving.');
     }
   };
 
@@ -81,7 +93,7 @@ export default function AdminDashboard() {
     if (confirm('Are you sure you want to delete this film?')) {
       try {
         await fetch(`/api/films/${id}`, { method: 'DELETE' });
-        fetchFilms();
+        fetchFilms(currentPage);
       } catch (error) {
         console.error('Failed to delete film:', error);
       }
@@ -206,6 +218,28 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    disabled={currentPage <= 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button 
+                    className="btn btn-secondary" 
+                    disabled={currentPage >= totalPages} 
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

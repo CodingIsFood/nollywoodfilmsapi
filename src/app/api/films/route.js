@@ -19,6 +19,22 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    
+    // Check for duplicate title
+    if (body.title) {
+      const searchResult = await searchFilms(body.title, 1, 100);
+      const exactMatch = searchResult.films.find(
+        film => film.title && film.title.toLowerCase() === body.title.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        return NextResponse.json(
+          { error: 'A film with this exact title already exists. Please disambiguate by adding the release year to the title.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const newFilm = await createFilm(body);
     return NextResponse.json(newFilm, { status: 201 });
   } catch (error) {

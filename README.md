@@ -12,7 +12,7 @@ Nollywood API is a fully-featured content management platform and API for Nigeri
 ## Features
 
 *   **Headless API Integration**: Seamless integration with Contentful Delivery and Management APIs.
-*   **Admin Dashboard**: A secure and intuitive interface to create, update, and delete film records.
+*   **Admin Dashboard**: A secure, paginated, and intuitive interface to create, update, and delete film records. Includes built-in data validation to prevent duplicate film titles.
 *   **Film Search & Pagination**: Full support for searching films by title and paginating through results via the API.
 *   **Rich Data Model**: Extensible content model supporting fields like Title, Release Year, Description, Production Company, Directed By, Produced By, Cast, and Poster URLs.
 
@@ -86,7 +86,7 @@ The application exposes Next.js Route Handlers to interact with the film databas
 ### Create Film
 *   **Endpoint**: `POST /api/films`
 *   **Body**: JSON object containing film fields.
-*   **Response**: 201 Created with the generated film ID and data.
+*   **Response**: 201 Created with the generated film ID and data. (Returns `400 Bad Request` if a film with the exact same title already exists to prevent duplicates).
 
 ### Get Film by ID
 *   **Endpoint**: `GET /api/films/[id]`
