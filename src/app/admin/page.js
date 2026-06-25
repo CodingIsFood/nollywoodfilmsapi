@@ -6,6 +6,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   
   // Bulk upload state
   const [uploading, setUploading] = useState(false);
@@ -25,13 +27,13 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    fetchFilms(currentPage);
-  }, [currentPage]);
+    fetchFilms(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
 
-  const fetchFilms = async (page = 1) => {
+  const fetchFilms = async (page = 1, query = '') => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/films?page=${page}&limit=10`);
+      const res = await fetch(`/api/films?page=${page}&limit=10&q=${encodeURIComponent(query)}`);
       const data = await res.json();
       setFilms(data.films || []);
       setTotalPages(data.totalPages || 1);
@@ -40,6 +42,12 @@ export default function AdminDashboard() {
       console.error('Error fetching films:', error);
     }
     setLoading(false);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    setSearchQuery(searchInput);
   };
 
   const handleFileUpload = async (e) => {
@@ -65,7 +73,7 @@ export default function AdminDashboard() {
         alert(data.error || 'Failed to upload CSV');
       } else {
         setUploadResult(data);
-        fetchFilms(currentPage);
+        fetchFilms(currentPage, searchQuery);
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -106,7 +114,7 @@ export default function AdminDashboard() {
       }
 
       resetForm();
-      fetchFilms(currentPage);
+      fetchFilms(currentPage, searchQuery);
     } catch (error) {
       console.error('Failed to save film:', error);
       alert('An unexpected error occurred while saving.');
@@ -131,7 +139,7 @@ export default function AdminDashboard() {
     if (confirm('Are you sure you want to delete this film?')) {
       try {
         await fetch(`/api/films/${id}`, { method: 'DELETE' });
-        fetchFilms(currentPage);
+        fetchFilms(currentPage, searchQuery);
       } catch (error) {
         console.error('Failed to delete film:', error);
       }
@@ -245,7 +253,38 @@ export default function AdminDashboard() {
         </div>
 
         {/* Data Column */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Search Box */}
+          <div className="film-card" style={{ padding: '1.5rem' }}>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '1rem' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Search films by title..." 
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="btn" style={{ whiteSpace: 'nowrap' }}>
+                Search
+              </button>
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </form>
+          </div>
+
           {loading ? (
             <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading films...</div>
           ) : (
