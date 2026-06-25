@@ -7,6 +7,10 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
+  // Bulk upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  
   // Form state
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -36,6 +40,40 @@ export default function AdminDashboard() {
       console.error('Error fetching films:', error);
     }
     setLoading(false);
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    const fileInput = e.target.elements.csvFile;
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadResult(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/films/bulk', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to upload CSV');
+      } else {
+        setUploadResult(data);
+        fetchFilms(currentPage);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('An unexpected error occurred during upload.');
+    } finally {
+      setUploading(false);
+      e.target.reset();
+    }
   };
 
   const handleInputChange = (e) => {
@@ -122,11 +160,41 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
         
         {/* Form Column */}
-        <div className="film-card" style={{ height: 'fit-content' }}>
-          <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>
-            {editingId ? 'Edit Film' : 'Add New Film'}
-          </h2>
-          <form onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Bulk Upload CSV */}
+          <div className="film-card" style={{ height: 'fit-content' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>Bulk Upload CSV</h2>
+            <form onSubmit={handleFileUpload}>
+              <div className="form-group">
+                <input required type="file" name="csvFile" accept=".csv" className="form-control" style={{ padding: '0.5rem' }} />
+              </div>
+              <button type="submit" className="btn" disabled={uploading} style={{ width: '100%', marginTop: '1rem' }}>
+                {uploading ? 'Uploading...' : 'Upload CSV'}
+              </button>
+            </form>
+            {uploadResult && (
+              <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <p style={{ fontWeight: '500', marginBottom: '0.5rem', color: uploadResult.skippedCount > 0 ? '#ffb86c' : '#50fa7b' }}>
+                  {uploadResult.message}
+                </p>
+                {uploadResult.skippedTitles && uploadResult.skippedTitles.length > 0 && (
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
+                    <p style={{ fontWeight: '600' }}>Skipped Titles:</p>
+                    <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+                      {uploadResult.skippedTitles.map((t, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="film-card" style={{ height: 'fit-content' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>
+              {editingId ? 'Edit Film' : 'Add New Film'}
+            </h2>
+            <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Title *</label>
               <input required type="text" name="title" className="form-control" value={formData.title} onChange={handleInputChange} />
@@ -173,6 +241,7 @@ export default function AdminDashboard() {
               )}
             </div>
           </form>
+        </div>
         </div>
 
         {/* Data Column */}
