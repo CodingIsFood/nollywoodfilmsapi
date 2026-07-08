@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { searchFilms, createFilm } from '@/lib/contentful';
+import { searchFilms, createFilm, updateFilm } from '@/lib/contentful';
 import Papa from 'papaparse';
 
 export async function POST(request) {
@@ -26,6 +26,7 @@ export async function POST(request) {
 
     const rows = result.data;
     let addedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     const skippedTitles = [];
 
@@ -47,6 +48,10 @@ export async function POST(request) {
       const title = cleanValue(getVal('title'));
       if (!title) continue; // Skip rows without a title
 
+      // Extract director and producer from CSV early
+      const csvDirectedBy = cleanValue(getVal('director'));
+      const csvProducedBy = cleanValue(getVal('producer'));
+
       // Check if film already exists
       const searchResult = await searchFilms(title, 1, 10);
       const exactMatch = searchResult.films.find(
@@ -54,8 +59,40 @@ export async function POST(request) {
       );
 
       if (exactMatch) {
-        skippedCount++;
-        skippedTitles.push(title);
+        const dbDirector = exactMatch.directedBy || '';
+        const dbProducer = exactMatch.producedBy || '';
+
+        // If either director or producer has actual content, skip it
+        if (dbDirector.trim() !== '' || dbProducer.trim() !== '') {
+          skippedCount++;
+          skippedTitles.push(title);
+          continue;
+        }
+
+        // If CSV also has both empty, skip because it won't add any new information
+        if (csvDirectedBy === '' && csvProducedBy === '') {
+          skippedCount++;
+          skippedTitles.push(title);
+          continue;
+        }
+
+        // Both are empty in DB, so update this exactMatch with new info
+        const filmData = {
+          title: title,
+          releaseYear: cleanValue(getVal('release year')) || exactMatch.releaseYear,
+          description: cleanValue(getVal('synopsis')) || exactMatch.description,
+          productionCompany: exactMatch.productionCompany || '',
+          directedBy: csvDirectedBy,
+          producedBy: csvProducedBy,
+          cast: cleanValue(getVal('cast')) || (Array.isArray(exactMatch.cast) ? exactMatch.cast.join(', ') : exactMatch.cast || ''),
+          posterUrl: exactMatch.posterUrl || ''
+        };
+
+        await updateFilm(exactMatch.id, filmData);
+        updatedCount++;
+        
+        // Add a small delay to avoid hitting Contentful API rate limits
+        await new Promise(resolve => setTimeout(resolve, 200));
         continue;
       }
 
@@ -65,8 +102,8 @@ export async function POST(request) {
         releaseYear: cleanValue(getVal('release year')),
         description: cleanValue(getVal('synopsis')),
         productionCompany: '', // Always empty as per requirements
-        directedBy: cleanValue(getVal('director')),
-        producedBy: cleanValue(getVal('producer')),
+        directedBy: csvDirectedBy,
+        producedBy: csvProducedBy,
         cast: cleanValue(getVal('cast')),
         posterUrl: '' // Not present in CSV
       };
@@ -79,8 +116,9 @@ export async function POST(request) {
     }
 
     return NextResponse.json({
-      message: `Successfully added ${addedCount} films. Skipped ${skippedCount} existing films.`,
+      message: `Successfully added ${addedCount} films. Updated ${updatedCount} films. Skipped ${skippedCount} existing films.`,
       addedCount,
+      updatedCount,
       skippedCount,
       skippedTitles
     }, { status: 200 });
