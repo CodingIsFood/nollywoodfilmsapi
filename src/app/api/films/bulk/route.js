@@ -39,79 +39,114 @@ export async function POST(request) {
     };
 
     for (const row of rows) {
-      // Find the correct header key case-insensitively
-      const getVal = (key) => {
-        const matchingKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase());
-        return matchingKey ? row[matchingKey] : '';
+      // Find the correct header key case-insensitively, supporting multiple aliases
+      const getVal = (...keys) => {
+        for (const key of keys) {
+          const matchingKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase());
+          if (matchingKey) return row[matchingKey];
+        }
+        return '';
       };
 
       const title = cleanValue(getVal('title'));
       if (!title) continue; // Skip rows without a title
 
-      // Extract director and producer from CSV early
-      const csvDirectedBy = cleanValue(getVal('director'));
-      const csvProducedBy = cleanValue(getVal('producer'));
+      // Extract all possible values from CSV
+      const releaseYearStr = cleanValue(getVal('year of release', 'release year'));
+      const synopsis = cleanValue(getVal('synopsis', 'description'));
+      const productionCompany = cleanValue(getVal('production/network company', 'production company'));
+      const director = cleanValue(getVal('director'));
+      const producer = cleanValue(getVal('producer'));
+      const cast = cleanValue(getVal('cast members', 'cast'));
 
       // Check if film already exists
       const searchResult = await searchFilms(title, 1, 10);
-      const exactMatch = searchResult.films.find(
+      const exactMatches = searchResult.films.filter(
         film => film.title && film.title.toLowerCase() === title.toLowerCase()
       );
 
-      if (exactMatch) {
-        const dbDirector = exactMatch.directedBy || '';
-        const dbProducer = exactMatch.producedBy || '';
-
-        // If either director or producer has actual content, skip it
-        if (dbDirector.trim() !== '' || dbProducer.trim() !== '') {
-          skippedCount++;
-          skippedTitles.push(title);
-          continue;
-        }
-
-        // If CSV also has both empty, skip because it won't add any new information
-        if (csvDirectedBy === '' && csvProducedBy === '') {
-          skippedCount++;
-          skippedTitles.push(title);
-          continue;
-        }
-
-        // Both are empty in DB, so update this exactMatch with new info
+      if (exactMatches.length === 0) {
+        // No match in title, add the film
         const filmData = {
           title: title,
-          releaseYear: cleanValue(getVal('release year')) || exactMatch.releaseYear,
-          description: cleanValue(getVal('synopsis')) || exactMatch.description,
-          productionCompany: exactMatch.productionCompany || '',
-          directedBy: csvDirectedBy,
-          producedBy: csvProducedBy,
-          cast: cleanValue(getVal('cast')) || (Array.isArray(exactMatch.cast) ? exactMatch.cast.join(', ') : exactMatch.cast || ''),
-          posterUrl: exactMatch.posterUrl || ''
+          releaseYear: releaseYearStr,
+          description: synopsis,
+          productionCompany: productionCompany,
+          directedBy: director,
+          producedBy: producer,
+          cast: cast,
+          posterUrl: '' 
         };
 
-        await updateFilm(exactMatch.id, filmData);
-        updatedCount++;
-        
-        // Add a small delay to avoid hitting Contentful API rate limits
+        await createFilm(filmData);
+        addedCount++;
         await new Promise(resolve => setTimeout(resolve, 200));
         continue;
       }
 
-      // Map row to film data
+      // Title matched. Check year of release.
+      const yearMatch = exactMatches.find(film => {
+        const dbYearStr = String(film.releaseYear || '').trim();
+        const csvYearStr = releaseYearStr.trim();
+        return dbYearStr === csvYearStr;
+      });
+
+      if (!yearMatch) {
+        // Match in title, but NO match in year of release.
+        // Add the film disambiguating with the year of release in parenthesis
+        const disambiguatedTitle = releaseYearStr ? `${title} (${releaseYearStr})` : title;
+        
+        const filmData = {
+          title: disambiguatedTitle,
+          releaseYear: releaseYearStr,
+          description: synopsis,
+          productionCompany: productionCompany,
+          directedBy: director,
+          producedBy: producer,
+          cast: cast,
+          posterUrl: '' 
+        };
+
+        await createFilm(filmData);
+        addedCount++;
+        await new Promise(resolve => setTimeout(resolve, 200));
+        continue;
+      }
+
+      // Match in year of release (yearMatch). Update only empty fields.
+      const dbDirector = yearMatch.directedBy || '';
+      const dbProducer = yearMatch.producedBy || '';
+      const dbDescription = yearMatch.description || '';
+      const dbProdCompany = yearMatch.productionCompany || '';
+      const dbCast = yearMatch.cast ? (Array.isArray(yearMatch.cast) ? yearMatch.cast.join(', ') : yearMatch.cast) : '';
+      const dbPosterUrl = yearMatch.posterUrl || '';
+
+      let hasUpdates = false;
       const filmData = {
-        title: title,
-        releaseYear: cleanValue(getVal('release year')),
-        description: cleanValue(getVal('synopsis')),
-        productionCompany: '', // Always empty as per requirements
-        directedBy: csvDirectedBy,
-        producedBy: csvProducedBy,
-        cast: cleanValue(getVal('cast')),
-        posterUrl: '' // Not present in CSV
+        title: yearMatch.title, // keep existing
+        releaseYear: yearMatch.releaseYear,
+        description: dbDescription,
+        productionCompany: dbProdCompany,
+        directedBy: dbDirector,
+        producedBy: dbProducer,
+        cast: dbCast,
+        posterUrl: dbPosterUrl
       };
 
-      await createFilm(filmData);
-      addedCount++;
+      if (!dbDescription && synopsis) { filmData.description = synopsis; hasUpdates = true; }
+      if (!dbProdCompany && productionCompany) { filmData.productionCompany = productionCompany; hasUpdates = true; }
+      if (!dbDirector && director) { filmData.directedBy = director; hasUpdates = true; }
+      if (!dbProducer && producer) { filmData.producedBy = producer; hasUpdates = true; }
+      if (!dbCast && cast) { filmData.cast = cast; hasUpdates = true; }
+
+      if (hasUpdates) {
+        await updateFilm(yearMatch.id, filmData);
+        updatedCount++;
+      } else {
+        skippedCount++;
+        skippedTitles.push(title);
+      }
       
-      // Add a small delay to avoid hitting Contentful API rate limits
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
