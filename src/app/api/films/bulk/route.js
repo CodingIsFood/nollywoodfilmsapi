@@ -34,7 +34,10 @@ export async function POST(request) {
     const cleanValue = (val) => {
       if (!val) return '';
       const trimmed = val.trim();
-      if (trimmed.toLowerCase() === 'placeholder text') return '';
+      const lower = trimmed.toLowerCase();
+      if (lower === 'placeholder text' || lower === 'unknown' || lower === 'no synopsis available.') {
+        return '';
+      }
       return trimmed;
     };
 
