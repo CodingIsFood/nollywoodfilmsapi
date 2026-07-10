@@ -13,6 +13,10 @@ export default function AdminDashboard() {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   
+  // Deduplication state
+  const [deduping, setDeduping] = useState(false);
+  const [dedupeResult, setDedupeResult] = useState(null);
+  
   // Form state
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -81,6 +85,30 @@ export default function AdminDashboard() {
     } finally {
       setUploading(false);
       e.target.reset();
+    }
+  };
+
+  const handleRemoveDuplicates = async () => {
+    if (!confirm('Are you sure you want to scan for and remove duplicate films?')) return;
+    
+    setDeduping(true);
+    setDedupeResult(null);
+    try {
+      const res = await fetch('/api/films/remove-duplicates', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to remove duplicates');
+      } else {
+        setDedupeResult(data);
+        fetchFilms(currentPage, searchQuery);
+      }
+    } catch (error) {
+      console.error('Dedupe error:', error);
+      alert('An unexpected error occurred during deduplication.');
+    } finally {
+      setDeduping(false);
     }
   };
 
@@ -191,6 +219,38 @@ export default function AdminDashboard() {
                     <p style={{ fontWeight: '600' }}>Skipped Titles:</p>
                     <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
                       {uploadResult.skippedTitles.map((t, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Remove Duplicates */}
+          <div className="film-card" style={{ height: 'fit-content' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>Data Cleanup</h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Scan your database for duplicate entries (matching title and year) and keep only the most populated records.
+            </p>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={handleRemoveDuplicates} 
+              disabled={deduping} 
+              style={{ width: '100%', borderColor: '#ff5555', color: '#ff5555' }}
+            >
+              {deduping ? 'Removing Duplicates...' : 'Remove Duplicates'}
+            </button>
+            {dedupeResult && (
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,85,85,0.1)', borderRadius: '8px', color: '#ff5555', fontSize: '0.9rem' }}>
+                <p style={{ fontWeight: '500' }}>{dedupeResult.message}</p>
+                {dedupeResult.deletedTitles && dedupeResult.deletedTitles.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
+                    <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Removed Titles:</p>
+                    <ul style={{ paddingLeft: '1.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+                      {dedupeResult.deletedTitles.map((t, i) => (
+                        <li key={i} style={{ marginBottom: '0.1rem' }}>{t}</li>
+                      ))}
                     </ul>
                   </div>
                 )}
