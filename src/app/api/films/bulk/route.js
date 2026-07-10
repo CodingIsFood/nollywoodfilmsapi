@@ -12,7 +12,7 @@ export async function POST(request) {
     }
 
     const text = await file.text();
-    
+
     // Parse CSV
     const result = Papa.parse(text, {
       header: true,
@@ -35,7 +35,7 @@ export async function POST(request) {
       if (!val) return '';
       const trimmed = val.trim();
       const lower = trimmed.toLowerCase();
-      if (lower === 'placeholder text' || lower === 'unknown' || lower === 'no synopsis available.') {
+      if (lower === 'placeholder text' || lower === 'unknown' || lower === 'no synopsis available.' || lower === 'Data unavailable via this API endpoint') {
         return '';
       }
       return trimmed;
@@ -63,7 +63,7 @@ export async function POST(request) {
       const cast = cleanValue(getVal('cast members', 'cast'));
 
       // Check if film already exists
-      const searchResult = await searchFilms(title, 1, 10);
+      const searchResult = await searchFilms(title, 1, 100);
       const exactMatches = searchResult.films.filter(
         film => film.title && film.title.toLowerCase() === title.toLowerCase()
       );
@@ -78,7 +78,7 @@ export async function POST(request) {
           directedBy: director,
           producedBy: producer,
           cast: cast,
-          posterUrl: '' 
+          posterUrl: ''
         };
 
         await createFilm(filmData);
@@ -98,7 +98,7 @@ export async function POST(request) {
         // Match in title, but NO match in year of release.
         // Add the film disambiguating with the year of release in parenthesis
         const disambiguatedTitle = releaseYearStr ? `${title} (${releaseYearStr})` : title;
-        
+
         const filmData = {
           title: disambiguatedTitle,
           releaseYear: releaseYearStr,
@@ -107,7 +107,7 @@ export async function POST(request) {
           directedBy: director,
           producedBy: producer,
           cast: cast,
-          posterUrl: '' 
+          posterUrl: ''
         };
 
         await createFilm(filmData);
@@ -149,7 +149,7 @@ export async function POST(request) {
         skippedCount++;
         skippedTitles.push(title);
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
