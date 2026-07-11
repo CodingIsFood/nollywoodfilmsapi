@@ -17,6 +17,10 @@ export default function AdminDashboard() {
   const [deduping, setDeduping] = useState(false);
   const [dedupeResult, setDedupeResult] = useState(null);
   
+  // Sequel removal state
+  const [removingSequels, setRemovingSequels] = useState(false);
+  const [sequelResult, setSequelResult] = useState(null);
+  
   // Form state
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -109,6 +113,30 @@ export default function AdminDashboard() {
       alert('An unexpected error occurred during deduplication.');
     } finally {
       setDeduping(false);
+    }
+  };
+
+  const handleRemoveSequels = async () => {
+    if (!confirm('Are you sure you want to scan for and remove same-year sequels (e.g. Part 2, Part 3)?')) return;
+    
+    setRemovingSequels(true);
+    setSequelResult(null);
+    try {
+      const res = await fetch('/api/films/remove-sequels', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to remove sequels');
+      } else {
+        setSequelResult(data);
+        fetchFilms(currentPage, searchQuery);
+      }
+    } catch (error) {
+      console.error('Sequel removal error:', error);
+      alert('An unexpected error occurred during sequel removal.');
+    } finally {
+      setRemovingSequels(false);
     }
   };
 
@@ -249,6 +277,38 @@ export default function AdminDashboard() {
                     <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Removed Titles:</p>
                     <ul style={{ paddingLeft: '1.5rem', maxHeight: '150px', overflowY: 'auto' }}>
                       {dedupeResult.deletedTitles.map((t, i) => (
+                        <li key={i} style={{ marginBottom: '0.1rem' }}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Remove Same-Year Sequels */}
+          <div className="film-card" style={{ height: 'fit-content' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>Clean Same-Year Sequels</h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Scan your database for sequels (e.g. "Part 2", "Part 3") that share the exact same release year as their base film, and remove them to save records.
+            </p>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={handleRemoveSequels} 
+              disabled={removingSequels} 
+              style={{ width: '100%', borderColor: '#ffb86c', color: '#ffb86c' }}
+            >
+              {removingSequels ? 'Removing Sequels...' : 'Remove Same-Year Sequels'}
+            </button>
+            {sequelResult && (
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,184,108,0.1)', borderRadius: '8px', color: '#ffb86c', fontSize: '0.9rem' }}>
+                <p style={{ fontWeight: '500' }}>{sequelResult.message}</p>
+                {sequelResult.deletedTitles && sequelResult.deletedTitles.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
+                    <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Removed Titles:</p>
+                    <ul style={{ paddingLeft: '1.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+                      {sequelResult.deletedTitles.map((t, i) => (
                         <li key={i} style={{ marginBottom: '0.1rem' }}>{t}</li>
                       ))}
                     </ul>
