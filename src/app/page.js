@@ -83,9 +83,9 @@ export default function Home() {
                   {film.description && <div className="film-desc">{film.description}</div>}
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {film.productionCompany && (
+                    {film.productionCompany && film.productionCompany.length > 0 && (
                       <div className="film-meta">
-                        Company: <span>{film.productionCompany}</span>
+                        Company: <span>{film.productionCompany.join(', ')}</span>
                       </div>
                     )}
                     {film.cast && film.cast.length > 0 && (

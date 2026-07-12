@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { searchFilms, createFilm, updateFilm } from '@/lib/contentful';
+import { searchFilms, createFilm, updateFilm } from '@/lib/db';
 import Papa from 'papaparse';
 
 export async function POST(request) {

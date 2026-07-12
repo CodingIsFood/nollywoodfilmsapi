@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateFilm, deleteFilm } from '@/lib/contentful';
+import { updateFilm, deleteFilm } from '@/lib/db';
 
 export async function PUT(request, { params }) {
   try {

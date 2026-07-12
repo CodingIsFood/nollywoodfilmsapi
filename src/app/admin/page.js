@@ -183,10 +183,10 @@ export default function AdminDashboard() {
       title: film.title || '',
       releaseYear: film.releaseYear || '',
       description: film.description || '',
-      productionCompany: film.productionCompany || '',
-      directedBy: film.directedBy || '',
-      producedBy: film.producedBy || '',
-      cast: film.cast ? film.cast.join(', ') : '',
+      productionCompany: film.productionCompany ? (Array.isArray(film.productionCompany) ? film.productionCompany.join(', ') : film.productionCompany) : '',
+      directedBy: film.directedBy ? (Array.isArray(film.directedBy) ? film.directedBy.join(', ') : film.directedBy) : '',
+      producedBy: film.producedBy ? (Array.isArray(film.producedBy) ? film.producedBy.join(', ') : film.producedBy) : '',
+      cast: film.cast ? (Array.isArray(film.cast) ? film.cast.join(', ') : film.cast) : '',
       posterUrl: film.posterUrl || ''
     });
   };
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                       <tr key={film.id}>
                         <td style={{ fontWeight: '500' }}>{film.title}</td>
                         <td>{film.releaseYear || '-'}</td>
-                        <td>{film.productionCompany || '-'}</td>
+                        <td>{film.productionCompany ? (Array.isArray(film.productionCompany) ? film.productionCompany.join(', ') : film.productionCompany) : '-'}</td>
                         <td>
                           <div className="actions">
                             <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }} onClick={() => editFilm(film)}>

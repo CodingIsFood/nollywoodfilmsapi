@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { searchFilms, createFilm } from '@/lib/contentful';
+import { searchFilms, createFilm } from '@/lib/db';
 
 export async function GET(request) {
   try {
