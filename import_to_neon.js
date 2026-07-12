@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
-const CONNECTION_STRING = 'postgresql://neondb_owner:npg_T8RpvKwO3Day@ep-frosty-heart-aduqrf6s.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require';
+const CONNECTION_STRING = process.env.DATABASE_URL || '';
 
 async function importToNeon() {
   console.log('Reading exported JSON data...');
