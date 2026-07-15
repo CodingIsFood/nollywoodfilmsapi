@@ -6,6 +6,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalFilms, setTotalFilms] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   
@@ -46,6 +47,7 @@ export default function AdminDashboard() {
       setFilms(data.films || []);
       setTotalPages(data.totalPages || 1);
       setCurrentPage(data.page || 1);
+      setTotalFilms(data.total || 0);
     } catch (error) {
       console.error('Error fetching films:', error);
     }
@@ -377,6 +379,12 @@ export default function AdminDashboard() {
           
           {/* Search Box */}
           <div className="film-card" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontWeight: '600', margin: 0, fontSize: '1.25rem' }}>Film Database</h2>
+              <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: '500' }}>
+                Total Films: {totalFilms}
+              </span>
+            </div>
             <form onSubmit={handleSearch} style={{ display: 'flex', gap: '1rem' }}>
               <input 
                 type="text" 
