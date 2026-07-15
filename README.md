@@ -1,17 +1,17 @@
 # Nollywood API
 
-Nollywood API is a fully-featured content management platform and API for Nigerian films. Built with Next.js and powered by Contentful headless CMS, this application provides both a comprehensive RESTful API for querying film data and a sleek Admin Dashboard for content management.
+Nollywood API is a fully-featured content management platform and API for Nigerian films. Built with Next.js and powered by a Neon PostgreSQL database, this application provides both a comprehensive RESTful API for querying film data and a sleek Admin Dashboard for content management.
 
 ## Tech Stack
 
 *   **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
 *   **Library**: [React 18](https://react.dev/)
-*   **Headless CMS**: [Contentful](https://www.contentful.com/)
+*   **Database**: [Neon (PostgreSQL)](https://neon.tech/)
 *   **Styling**: Vanilla CSS
 
 ## Features
 
-*   **Headless API Integration**: Seamless integration with Contentful Delivery and Management APIs.
+*   **Database Integration**: Direct interaction with a Neon Serverless Postgres database.
 *   **Admin Dashboard**: A secure, paginated, and intuitive interface to create, update, and delete film records. Includes built-in data validation to prevent duplicate film titles.
 *   **Film Search & Pagination**: Full support for searching films by title and paginating through results via the API.
 *   **Rich Data Model**: Extensible content model supporting fields like Title, Release Year, Description, Production Company, Directed By, Produced By, Cast, and Poster URLs.
@@ -21,7 +21,7 @@ Nollywood API is a fully-featured content management platform and API for Nigeri
 ### Prerequisites
 
 *   Node.js (v18.x or newer recommended)
-*   A Contentful Space and environment with the `film` content type configured.
+*   A Neon PostgreSQL database instance.
 
 ### Installation
 
@@ -36,13 +36,10 @@ Nollywood API is a fully-featured content management platform and API for Nigeri
 
 ### Environment Variables
 
-Create a `.env.local` file in the root directory of your project and populate it with your Contentful credentials:
+Create a `.env.local` file in the root directory of your project and populate it with your database connection URI:
 
 ```env
-CONTENTFUL_SPACE_ID=your_space_id
-CONTENTFUL_ENVIRONMENT=master
-CONTENTFUL_ACCESS_TOKEN=your_delivery_api_token
-CONTENTFUL_MANAGEMENT_TOKEN=your_management_api_token
+DATABASE_URL=postgres://user:password@hostname/database
 ```
 
 ### Running the Application Locally
@@ -56,20 +53,21 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) to view the application.
 Navigate to [http://localhost:3000/admin](http://localhost:3000/admin) to access the admin dashboard.
 
-## Contentful Content Model
+## Database Schema
 
-Your Contentful space must contain a content type with the ID `film`. It should contain the following fields:
+Your Neon PostgreSQL database should contain a `films` table with the following schema:
 
-*   `title` (Symbol)
-*   `releaseYear` (Integer)
-*   `description` (Text)
-*   `productionCompany` (Symbol)
-*   `directedBy` (Symbol)
-*   `producedBy` (Symbol)
-*   `cast` (List of Symbols / Text)
-*   `posterUrl` (Symbol)
-
-*(Note: There is a local script `update_contentful.mjs` available to programmatically push new fields like `directedBy` and `producedBy` to your environment if they are missing).*
+*   `id` (VARCHAR PRIMARY KEY)
+*   `title` (TEXT NOT NULL)
+*   `release_year` (INTEGER)
+*   `description` (TEXT)
+*   `production_company` (TEXT[])
+*   `directed_by` (TEXT[])
+*   `produced_by` (TEXT[])
+*   `cast` (TEXT[])
+*   `poster_url` (TEXT)
+*   `created_at` (TIMESTAMP)
+*   `updated_at` (TIMESTAMP)
 
 ## API Reference
 
