@@ -99,6 +99,31 @@ The application exposes Next.js Route Handlers to interact with the film databas
 *   **Endpoint**: `DELETE /api/films/[id]`
 *   **Response**: 200 OK confirming deletion.
 
+## Utility Scripts
+
+The repository includes helper scripts for bulk data management and database operations.
+
+### Update Cast from CSV (`update_cast_from_csv.js`)
+
+This script updates existing database film records with additional cast members parsed from a CSV file.
+
+* **Usage**:
+  ```bash
+  node update_cast_from_csv.js [path/to/file.csv]
+  ```
+  *(If no file path is provided, it defaults to `test_films.csv` in the root directory)*
+
+* **CSV Format Requirements**:
+  The target CSV file must include the following column headers:
+  * `Title`: The title of the film (e.g., `The Wedding Party`).
+  * `Year of Release`: The four-digit release year (e.g., `2016`).
+  * `Full Cast`: Comma-separated list of cast members (e.g., `Adesua Etomi, Banky W., Richard Mofe-Damijo`).
+
+* **Key Features & Behavior**:
+  * **Title & Year Matching**: Matches CSV rows against database records using normalized titles (ignoring parentheses and case differences) and exact release year.
+  * **Deduplication**: Compares CSV cast members against current database entries and only appends new cast members, preserving existing records without duplication.
+  * **Database Connection**: Uses the `DATABASE_URL` configured in `.env.local` or environment variables.
+
 ## Deployment
 
 This application is ready to be deployed on Vercel. Ensure you add all the Environment Variables listed above to your Vercel project settings before deploying.
