@@ -22,6 +22,11 @@ export default function AdminDashboard() {
   const [removingSequels, setRemovingSequels] = useState(false);
   const [sequelResult, setSequelResult] = useState(null);
   
+  // TMDB auto-sync state
+  const [syncInfo, setSyncInfo] = useState(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+
   // Form state
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -38,6 +43,77 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchFilms(currentPage, searchQuery);
   }, [currentPage, searchQuery]);
+
+  useEffect(() => {
+    fetchSyncInfo();
+  }, []);
+
+  const fetchSyncInfo = async () => {
+    try {
+      const res = await fetch('/api/tmdb-sync');
+      if (res.ok) {
+        setSyncInfo(await res.json());
+      }
+    } catch (error) {
+      console.error('Error fetching sync info:', error);
+    }
+  };
+
+  const runTmdbSync = async () => {
+    if (!confirm('Run the TMDB sync now? This fetches Nigerian movies and TV shows for the scheduled year range and may take a few minutes.')) return;
+
+    setSyncLoading(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch('/api/tmdb-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run' }),
+      });
+      const data = await res.json();
+      setSyncResult(data);
+      if (!res.ok) {
+        alert(data.message || data.error || 'TMDB sync failed');
+      } else {
+        fetchFilms(currentPage, searchQuery);
+      }
+      fetchSyncInfo();
+    } catch (error) {
+      console.error('TMDB sync error:', error);
+      alert('An unexpected error occurred during the TMDB sync.');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const toggleTmdbSync = async () => {
+    if (!syncInfo) return;
+    const desired = !syncInfo.enabled;
+    try {
+      const res = await fetch('/api/tmdb-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle', enabled: desired }),
+      });
+      if (res.ok) {
+        setSyncInfo(prev => ({ ...prev, enabled: desired }));
+      } else {
+        alert('Failed to update sync setting.');
+      }
+    } catch (error) {
+      console.error('Toggle sync error:', error);
+      alert('An unexpected error occurred while updating the sync setting.');
+    }
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '—';
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return value;
+    }
+  };
 
   const fetchFilms = async (page = 1, query = '') => {
     setLoading(true);
@@ -256,7 +332,94 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {/* Remove Duplicates */}
+          {/* TMDB Auto-Sync */}
+          <div className="film-card" style={{ height: 'fit-content' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontWeight: '600', margin: 0 }}>TMDB Auto-Sync</h2>
+              <span style={{
+                fontSize: '0.8rem',
+                padding: '0.3rem 0.7rem',
+                borderRadius: '20px',
+                fontWeight: '600',
+                backgroundColor: syncInfo && syncInfo.enabled ? 'rgba(80,250,123,0.15)' : 'rgba(255,184,108,0.15)',
+                color: syncInfo && syncInfo.enabled ? '#50fa7b' : '#ffb86c',
+              }}>
+                {syncInfo ? (syncInfo.enabled ? 'Enabled' : 'Paused') : '...'}
+              </span>
+            </div>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Automatically pulls Nigerian movies and TV shows from themoviedb.org.
+              Runs every Sunday via cron for{' '}
+              {syncInfo && syncInfo.yearRange
+                ? `${syncInfo.yearRange.startYear}–${syncInfo.yearRange.endYear}`
+                : 'the current year range'}.
+              Existing records are only topped up where fields are empty.
+            </p>
+
+            {syncInfo && !syncInfo.configured && (
+              <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,85,85,0.1)', borderRadius: '8px', color: '#ff5555', fontSize: '0.85rem' }}>
+                TMDB_API_TOKEN is not configured on the server.
+              </div>
+            )}
+
+            {syncInfo && (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                {syncInfo.runs && syncInfo.runs.length > 0 ? (
+                  <div>
+                    <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Last run</p>
+                    <p>
+                      {formatDate(syncInfo.runs[0].finishedAt || syncInfo.runs[0].startedAt)} ·{' '}
+                      <span style={{ color: syncInfo.runs[0].status === 'success' ? '#50fa7b' : '#ffb86c' }}>
+                        {syncInfo.runs[0].status}
+                      </span>{' '}
+                      ({syncInfo.runs[0].trigger})
+                    </p>
+                    <p style={{ marginTop: '0.25rem' }}>
+                      +{syncInfo.runs[0].added} added · {syncInfo.runs[0].updated} updated · {syncInfo.runs[0].skipped} unchanged
+                    </p>
+                  </div>
+                ) : (
+                  <p>No sync has run yet.</p>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={runTmdbSync}
+                disabled={syncLoading || !!(syncInfo && !syncInfo.configured)}
+                style={{ flex: 1 }}
+              >
+                {syncLoading ? 'Syncing...' : 'Sync Now'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={toggleTmdbSync}
+                disabled={!syncInfo}
+              >
+                {syncInfo && syncInfo.enabled ? 'Pause' : 'Enable'}
+              </button>
+            </div>
+
+            {syncResult && (
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.85rem' }}>
+                {syncResult.status === 'success' ? (
+                  <p style={{ color: '#50fa7b' }}>
+                    Synced {syncResult.startYear}–{syncResult.endYear}: {syncResult.added} added,{' '}
+                    {syncResult.updated} updated, {syncResult.skipped} unchanged
+                    {syncResult.errors ? `, ${syncResult.errors} warnings` : ''}.
+                  </p>
+                ) : (
+                  <p style={{ color: '#ff5555' }}>{syncResult.message || syncResult.error || 'Sync failed.'}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Data Cleanup */}
           <div className="film-card" style={{ height: 'fit-content' }}>
             <h2 style={{ marginBottom: '1.5rem', fontWeight: '600' }}>Data Cleanup</h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>

@@ -40,6 +40,15 @@ Create a `.env.local` file in the root directory of your project and populate it
 
 ```env
 DATABASE_URL=postgres://user:password@hostname/database
+ADMIN_PASSWORD=choose-a-strong-password
+
+# Required for the automatic TMDB sync (see below).
+# TMDB v4 "API Read Access Token" from https://www.themoviedb.org/settings/api
+TMDB_API_TOKEN=your-tmdb-read-access-token
+
+# Secret Vercel Cron sends as "Authorization: Bearer <CRON_SECRET>" to /api/cron/sync
+# Generate one with: openssl rand -hex 32
+CRON_SECRET=replace-with-a-long-random-string
 ```
 
 ### Running the Application Locally
@@ -98,6 +107,56 @@ The application exposes Next.js Route Handlers to interact with the film databas
 ### Delete Film
 *   **Endpoint**: `DELETE /api/films/[id]`
 *   **Response**: 200 OK confirming deletion.
+
+## Automatic TMDB Weekly Sync
+
+The platform can populate itself automatically from [themoviedb.org](https://www.themoviedb.org), replacing the manual "run a Python script → upload a CSV" workflow.
+
+Every **Sunday at 03:00 UTC**, Vercel Cron calls `GET /api/cron/sync`, which:
+
+1. Discovers Nigerian movies (`/discover/movie`) and TV shows (`/discover/tv`) with `with_origin_country=NG` for the **previous year + current year** (so titles that TMDB catalogs late are still picked up).
+2. Fetches details + credits for each title and maps them into the `films` schema (Title, Type, Year, Cast, Director, Producer, Synopsis, Production/Network Company, Poster URL).
+3. Merges each record into the database using the **same rules as the CSV bulk upload**:
+   * Title + year match → fill only the fields that are currently empty (never overwrites curated data).
+   * Title match with a different year → inserted as `Title (Year)`.
+   * No match → inserted as a new record.
+4. Records the run in `tmdb_sync_runs` so you can see what happened.
+
+A Postgres advisory lock guarantees that two overlapping runs (e.g. a provider retry) can never mutate the data at the same time.
+
+### Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `TMDB_API_TOKEN` | TMDB v4 read access token (required). |
+| `CRON_SECRET` | Shared secret Vercel Cron sends as `Authorization: Bearer <CRON_SECRET>`. If unset, Vercel's `x-vercel-cron` header is trusted instead. |
+
+The schedule lives in [`vercel.json`](./vercel.json):
+
+```json
+{ "crons": [{ "path": "/api/cron/sync", "schedule": "0 3 * * 0" }] }
+```
+
+> **Note:** The sync makes many sequential TMDB calls per year. On Vercel, enable a runtime long enough to finish (`maxDuration = 300` is already set on the route; Pro plans allow up to 300s). If a run is cut short, simply re-run — the merge is idempotent, so already-imported titles are skipped.
+
+### Manual triggers
+
+* **Admin dashboard** → *TMDB Auto-Sync* panel → **Sync Now**. You can also **Pause / Enable** the scheduled sync without redeploying.
+* **HTTP** — `GET /api/cron/sync` with the `Authorization: Bearer $CRON_SECRET` header (optional `?startYear=2025&endYear=2026`).
+* **CLI** — run the exact same engine locally:
+
+  ```bash
+  node scripts/sync-tmdb.js            # previous + current year
+  node scripts/sync-tmdb.js 2025 2026  # explicit inclusive year range
+  ```
+
+### Sync tables
+
+The sync creates three helper tables automatically on first run (your existing `films` table is untouched):
+
+* `tmdb_sync_runs` – history/status of each run (added, updated, skipped, errors).
+* `tmdb_sync_state` – the enabled/paused flag.
+* `tmdb_film_map` – maps a TMDB id + media type to the local `films.id`, so re-runs update the same record even if its title was disambiguated.
 
 ## Utility Scripts
 
